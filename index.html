@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>FACE SHIELD</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono&display=swap" rel="stylesheet">
+    </head>
+    <body style="overflow: hidden; margin: 0px; padding: 0px; background-color: rgb(0, 0, 0); cursor: none;">
+        <script type="ns" id="vs-t">
+            attribute vec4 a_pos;
+            attribute vec4 a_color;
+            attribute vec4 a_center;
+            attribute float a_r;
+            attribute float a_R;
+            attribute float a_s;
+
+            uniform mat4 u_matrix;
+
+            varying vec4 v_pos;
+            varying vec4 v_color;
+            varying vec4 v_center;
+            varying float v_r;
+            varying float v_R;
+            varying float v_s;
+
+            void main() {
+                gl_Position = u_matrix * a_pos;
+
+                v_pos = a_pos;
+                v_color = a_color;
+                v_center = a_center;
+                v_r = a_r;
+                v_R = a_R;
+                v_s = a_s;
+            }
+        </script>
+        <script type="ns" id="fs-t">
+            precision mediump float;
+
+            #define PI 3.14159265359
+            #define TWO_PI 6.28318530718
+
+            varying vec4 v_pos;
+            varying vec4 v_color;
+            varying vec4 v_center;
+            varying float v_r;
+            varying float v_R;
+            varying float v_s;
+
+            //http://thndl.com/square-shaped-shaders.html
+            float tri(vec4 pos, float s) {
+                float a = atan(pos.y,pos.x) + PI + s;
+                float r = TWO_PI/3.;
+
+                float d = cos(floor(.5+a/r)*r-a)*length(pos);
+                
+                float dd = 0.01;
+                float col = 1.0 - smoothstep(1.,1.+dd,d);
+                return col;
+            }
+
+            void main() {                
+                vec4 pos = v_pos - v_center;
+                float col = tri(pos/(.5*v_R),v_s) * (1.- tri(pos/(.5*v_r),v_s));
+
+                gl_FragColor = vec4(col*v_color.w*v_color.xyz,v_color.w);
+            }
+        </script>
+        <script type="ns" id="vs-l">
+            attribute vec4 a_pos;
+            attribute vec4 a_color;
+            attribute vec4 a_p1;
+            attribute vec4 a_p2;
+            attribute float a_r;
+            
+            uniform mat4 u_matrix;
+
+            varying vec4 v_pos;
+            varying vec4 v_color;
+            varying vec4 v_p1;
+            varying vec4 v_p2;
+            varying float v_r;
+
+            void main() {
+                gl_Position = u_matrix * a_pos;
+
+                v_pos = a_pos;
+                v_color = a_color;
+                v_p1 = a_p1;
+                v_p2 = a_p2;
+                v_r = a_r;
+            }
+        </script>
+        <script type="ns" id="fs-l">
+            precision mediump float;
+
+            varying vec4 v_pos;
+            varying vec4 v_color;
+            varying vec4 v_p1;
+            varying vec4 v_p2;
+            varying float v_r;
+
+            float dtol(vec2 p, vec2 a, vec2 b) {
+                float l2 = pow(distance(a,b), 2.);
+                float t = clamp(dot(p-a,b-a)/l2,0.,1.);
+                vec2 j = a + t*(b-a);
+                return distance(p,j);
+            }
+
+            void main() {
+                float dist = dtol(v_pos.xy, v_p1.xy, v_p2.xy);
+                float dr = 0.001;
+                float col = smoothstep(v_r,v_r-dr,dist);
+                gl_FragColor = vec4(col*v_color.w*v_color.xyz,v_color.w);
+            }
+        </script>
+        <script type='ns' id='vs-c'>
+            attribute vec4 a_pos;
+            attribute vec4 a_color;
+            attribute vec4 a_center;
+            attribute float a_r;
+            attribute float a_R;
+            attribute float a_s1;
+            attribute float a_s2;
+            attribute float a_theta;
+        
+            uniform mat4 u_matrix;
+
+            varying vec4 v_color;
+            varying vec4 v_pos;
+            varying vec4 v_center;
+            varying float v_r;
+            varying float v_R;
+            varying float v_s1;
+            varying float v_s2;
+            varying float v_theta;
+        
+            void main() {
+                gl_Position = u_matrix * a_pos;
+                
+                v_color = a_color;
+                v_pos = a_pos;
+                v_center = a_center;
+                v_r = a_r;
+                v_R = a_R;
+                v_s1 = a_s1;
+                v_s2 = a_s2;
+                v_theta = a_theta;
+            }
+        </script>
+        <script type='ns' id="fs-c">
+            #define PI 3.1415926538
+
+            precision mediump float;
+
+            varying vec4 v_color;
+            varying vec4 v_pos;
+            varying vec4 v_center;
+            varying float v_r;
+            varying float v_R;
+            varying float v_s1;
+            varying float v_s2;
+            varying float v_theta;
+
+            void main() {
+                float dist = distance(v_pos,v_center);
+                float col = 0.;
+                float dr = 0.01;
+                float dtheta = 0.01;
+                col += smoothstep(v_R,v_R-dr,dist) - smoothstep(v_r+dr,v_r,dist);
+                float theta = -atan(v_pos.y-v_center.y,-v_pos.x+v_center.x)+PI-v_theta;
+                if (theta > 2.*PI) {
+                    theta -= 2.*PI;
+                } else if (theta < 0.) {
+                    theta += 2.*PI;
+                }
+                col *= smoothstep(v_s1-dtheta,v_s1,theta)*smoothstep(v_s2,v_s2-dtheta,theta);
+                gl_FragColor = vec4(col*v_color.w*v_color.xyz,v_color.w);
+            }
+        </script>
+        <audio id="collision" style="visibility:hidden;" src="sfx/collision.wav"></audio>
+        <audio id="die" style="visibility:hidden;" src="sfx/die.wav"></audio>
+        <audio id="levelcomplete" style="visibility:hidden;" src="sfx/levelcomplete.wav"></audio>
+        <audio id="menuclose" style="visibility:hidden;" src="sfx/menuclose.wav"></audio>
+        <audio id="menuopen" style="visibility:hidden;" src="sfx/menuopen.wav"></audio>
+        <audio id="pickup" style="visibility:hidden;" src="sfx/pickup.wav"></audio>
+        <audio id="select" style="visibility:hidden;" src="sfx/select.wav"></audio>
+        <audio controls loop id="liquid" style="visibility: hidden" src="sfx/water.wav"></audio>
+
+        <canvas id="c" style="position: fixed; top: 0px; left: 0px; z-index: 0;"></canvas>
+        <canvas id="txt" style="position: fixed; top: 0px; left: 0px; z-index: 1;"></canvas>
+        <script src="twgl.js"></script>
+        <script src="g.js"></script>
+    </body>
+</html>
